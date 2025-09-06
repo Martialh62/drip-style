@@ -88,13 +88,18 @@ function formatPrixFCFA(prix) {
     });
 }
 
+// Configuration de l'API
+const API_URL = 'https://drip-style.onrender.com';
+
 // Fonction utilitaire pour les appels API
 async function fetchWithTimeout(url, options = {}, timeout = 5000) {
+    // Ajout de l'URL de base de l'API
+    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     
     try {
-        const response = await fetch(url, {
+        const response = await fetch(fullUrl, {
             ...options,
             signal: controller.signal
         });
