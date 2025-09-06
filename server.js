@@ -179,8 +179,36 @@ process.on('SIGINT', async () => {
     }
 });
 
-// Démarrage de la connexion
-connectWithRetry();
+// Démarrage du serveur et de la connexion
+const startServer = async () => {
+    try {
+        // Vérification des variables d'environnement
+        console.log('🔑 Variables d\'environnement:', {
+            NODE_ENV: process.env.NODE_ENV,
+            PORT: process.env.PORT,
+            MONGODB_URI: process.env.MONGODB_URI ? 'Définie' : 'Non définie'
+        });
+
+        // Connexion à MongoDB
+        await connectWithRetry();
+
+        // Démarrage du serveur Express
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+            console.log(`🌐 URL de l'API: http://localhost:${PORT}`);
+            console.log('📑 Routes disponibles:');
+            console.log('  - GET  /api/status');
+            console.log('  - GET  /api/articles');
+            console.log('  - POST /api/articles');
+        });
+    } catch (err) {
+        console.error('❌ Erreur au démarrage:', err);
+        process.exit(1);
+    }
+};
+
+// Démarrage de l'application
+startServer();
 
 // Test route
 app.get('/test', (req, res) => {
