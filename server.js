@@ -3,17 +3,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// Routes
-// Import des routes
-const articleRoutes = require('./routes/articles');
-const transactionRoutes = require('./routes/transactions');
-const reportRoutes = require('./routes/reports');
+// Import des modèles
+const Article = require('./models/Article');
+const Transaction = require('./models/Transaction');
 
 // Log pour débogage
-console.log('📑 Chargement des routes...', {
-    articles: articleRoutes ? 'OK' : 'Non chargé',
-    transactions: transactionRoutes ? 'OK' : 'Non chargé',
-    reports: reportRoutes ? 'OK' : 'Non chargé'
+console.log('📑 Chargement des modèles...', {
+    Article: Article ? 'OK' : 'Non chargé',
+    Transaction: Transaction ? 'OK' : 'Non chargé'
 });
 
 // Chargement des variables d'environnement
@@ -153,16 +150,47 @@ app.get('/test', (req, res) => {
     res.json({ message: 'API opérationnelle' });
 });
 
-// Montage des routes API
-app.use('/api/articles', articleRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/reports', reportRoutes);
-
-console.log('✅ Routes montées :', {
-    '/api/articles': true,
-    '/api/transactions': true,
-    '/api/reports': true
+// Routes API directes pour le débogage
+app.get('/api/articles', async (req, res) => {
+    console.log('🔍 GET /api/articles');
+    try {
+        const articles = await Article.find();
+        console.log(`✅ ${articles.length} articles trouvés`);
+        res.json({
+            success: true,
+            data: articles,
+            count: articles.length
+        });
+    } catch (err) {
+        console.error('❌ Erreur:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération des articles',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
 });
+
+app.post('/api/articles', async (req, res) => {
+    console.log('📝 POST /api/articles', req.body);
+    try {
+        const article = new Article(req.body);
+        await article.save();
+        res.status(201).json({
+            success: true,
+            data: article
+        });
+    } catch (err) {
+        console.error('❌ Erreur:', err);
+        res.status(400).json({
+            success: false,
+            message: 'Erreur lors de la création de l\'article',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+});
+
+console.log('✅ Routes API montées directement dans server.js');
 
 // Route racine
 app.get('/', (req, res) => {
