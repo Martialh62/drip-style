@@ -2,31 +2,78 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
+
+// Chargement des variables d'environnement
+dotenv.config({ path: '.env.production' });
 
 // Import des modèles
 const Article = require('./models/Article');
 const Transaction = require('./models/Transaction');
 
-// Log pour débogage
-console.log('📑 Chargement des modèles...', {
-    Article: Article ? 'OK' : 'Non chargé',
-    Transaction: Transaction ? 'OK' : 'Non chargé'
-});
+// Configuration MongoDB
+mongoose.set('strictQuery', false);
+mongoose.set('debug', true);
 
-// Chargement des variables d'environnement
-if (process.env.NODE_ENV === 'production') {
-    dotenv.config({ path: '.env.production' });
-} else {
-    dotenv.config();
-}
+// Options de connexion MongoDB
+const mongoOptions = {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    family: 4,
+    autoIndex: true,
+    connectTimeoutMS: 10000,
+    retryWrites: true,
+    w: 'majority'
+};
 
+// Initialisation de l'application Express
 const app = express();
 
-// Log des variables d'environnement (sans les secrets)
-console.log('💻 Configuration du serveur :', {
-    NODE_ENV: process.env.NODE_ENV,
-    PORT: process.env.PORT,
-    DATABASE: process.env.MONGODB_URI ? 'Configurée' : 'Non configurée'
+// Configuration de base
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+
+// Middleware de logging
+app.use((req, res, next) => {
+    console.log(`💬 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
+// Middleware de vérification MongoDB
+app.use((req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({
+            success: false,
+            message: 'Base de données non connectée',
+            readyState: mongoose.connection.readyState
+        });
+    }
+    next();
+});
+
+// Routes de base
+app.get('/', (req, res) => {
+    res.json({
+        name: 'DRIP & STYLE API',
+        version: '1.0.0',
+        status: 'running'
+    });
+});
+
+// Route de statut
+app.get('/status', (req, res) => {
+    res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        mongodb: {
+            connected: mongoose.connection.readyState === 1,
+            state: mongoose.connection.readyState
+        },
+        environment: process.env.NODE_ENV
+    });
 });
 
 // Configuration CORS
@@ -44,17 +91,6 @@ const requestLogger = (req, res, next) => {
     console.log(`💬 [${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
 };
-
-// Middleware essentiels
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors(corsOptions));
-
-// Middleware de logging
-app.use((req, res, next) => {
-    console.log(`💬 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
 
 // Vérification de la connexion MongoDB
 app.use((req, res, next) => {
@@ -136,11 +172,6 @@ const connectWithRetry = async (retries = 5) => {
             console.log(`🔗 Tentative de connexion à MongoDB (${i + 1}/${retries})...`);
             await mongoose.connect(process.env.MONGODB_URI, mongoOptions);
             console.log('✅ Connecté à MongoDB');
-            
-            // Vérifier l'accès à la base de données
-            const collections = await mongoose.connection.db.listCollections().toArray();
-            console.log('📚 Collections disponibles:', collections.map(c => c.name));
-            
             return true;
         } catch (err) {
             console.error(`❌ Erreur de connexion (tentative ${i + 1}):`, err.message);
@@ -154,13 +185,18 @@ const connectWithRetry = async (retries = 5) => {
     throw new Error('Impossible de se connecter à MongoDB après plusieurs tentatives');
 };
 
-// Gestion des événements de connexion MongoDB
-mongoose.connection.on('connected', () => {
-    console.log('🟢 MongoDB connecté');
+// Démarrage de la connexion MongoDB
+connectWithRetry().catch(err => {
+    console.error('❌ Erreur fatale:', err);
+    process.exit(1);
 });
 
 mongoose.connection.on('error', (err) => {
     console.error('🔴 Erreur MongoDB:', err);
+});
+
+mongoose.connection.on('connected', () => {
+    console.log('🟢 MongoDB connecté');
 });
 
 mongoose.connection.on('disconnected', () => {
@@ -255,7 +291,7 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-// Routes API
+// Routes API Articles
 app.get('/api/articles', async (req, res) => {
     console.log('🔍 GET /api/articles');
     try {
@@ -334,8 +370,8 @@ app.use((req, res) => {
     });
 });
 
+// Démarrage du serveur
 const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Serveur démarré sur le port ${PORT}`);
     console.log(`🌐 URL de l'API: http://localhost:${PORT}`);
