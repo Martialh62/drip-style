@@ -4,9 +4,17 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 
 // Routes
+// Import des routes
 const articleRoutes = require('./routes/articles');
 const transactionRoutes = require('./routes/transactions');
 const reportRoutes = require('./routes/reports');
+
+// Vérification des routes importées
+console.log('📑 Routes chargées:', {
+    articles: typeof articleRoutes === 'function',
+    transactions: typeof transactionRoutes === 'function',
+    reports: typeof reportRoutes === 'function'
+});
 
 dotenv.config();
 
@@ -140,10 +148,27 @@ app.get('/test', (req, res) => {
     res.json({ message: 'API opérationnelle' });
 });
 
-// Routes API
-app.use('/api/articles', articleRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/reports', reportRoutes);
+// Routes API avec vérification
+if (articleRoutes) {
+    console.log('✅ Route /api/articles montée');
+    app.use('/api/articles', articleRoutes);
+} else {
+    console.error('❌ Route /api/articles non disponible');
+}
+
+if (transactionRoutes) {
+    console.log('✅ Route /api/transactions montée');
+    app.use('/api/transactions', transactionRoutes);
+} else {
+    console.error('❌ Route /api/transactions non disponible');
+}
+
+if (reportRoutes) {
+    console.log('✅ Route /api/reports montée');
+    app.use('/api/reports', reportRoutes);
+} else {
+    console.error('❌ Route /api/reports non disponible');
+}
 
 // Route racine
 app.get('/', (req, res) => {

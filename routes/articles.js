@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+
+// Log pour débogage
+console.log('📓 Initialisation des routes articles');
 const Article = require('../models/Article');
 
 // Obtenir tous les articles
@@ -65,5 +68,13 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// Log des routes disponibles
+console.log('📗 Routes articles disponibles:', [
+    'GET /api/articles',
+    'POST /api/articles',
+    'PUT /api/articles/:id',
+    'DELETE /api/articles/:id'
+]);
 
 module.exports = router;
