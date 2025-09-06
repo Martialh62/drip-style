@@ -103,7 +103,7 @@ function showServerStarting() {
 }
 
 // Vérification de la connexion au serveur
-async function checkServerConnection(retries = 3) {
+async function checkServerConnection(retries = 5) {
     for (let i = 0; i < retries; i++) {
         try {
             const response = await fetch(`${API_URL}/api/articles`);
@@ -114,7 +114,10 @@ async function checkServerConnection(retries = 3) {
         } catch (err) {
             console.log(`❗ Tentative ${i + 1}/${retries} échouée`);
             if (i < retries - 1) {
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                // Attendre plus longtemps entre chaque tentative
+                const waitTime = (i + 1) * 10000; // 10s, 20s, 30s, 40s, 50s
+                console.log(`⏳ Attente de ${waitTime/1000} secondes avant la prochaine tentative...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
             }
         }
     }
