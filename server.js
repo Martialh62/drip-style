@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const rateLimit = require('express-rate-limit');
 
 // Chargement des variables d'environnement
 dotenv.config({ path: '.env.production' });
@@ -54,7 +55,27 @@ const PORT = process.env.PORT || 3001;
 // Configuration de base
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || 'https://drip-style.netlify.app',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Configuration du rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+    message: {
+        success: false,
+        message: 'Trop de requêtes, veuillez réessayer plus tard.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+// Appliquer le rate limiting à toutes les routes
+app.use(limiter);
 
 // Middleware de logging
 app.use((req, res, next) => {
@@ -113,12 +134,29 @@ app.get('/health', (req, res) => {
 // Routes API Articles
 app.get('/api/articles', async (req, res) => {
     try {
-        const articles = await Article.find();
-        console.log(`✅ ${articles.length} articles trouvés`);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const [articles, total] = await Promise.all([
+            Article.find()
+                .skip(skip)
+                .limit(limit)
+                .sort({ derniereMiseAJour: -1 }),
+            Article.countDocuments()
+        ]);
+
+        console.log(`✅ ${articles.length} articles trouvés (page ${page}/${Math.ceil(total/limit)})`);
+        
         res.json({
             success: true,
             data: articles,
-            count: articles.length
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
         });
     } catch (err) {
         console.error('❌ Erreur:', err);
@@ -143,6 +181,58 @@ app.post('/api/articles', async (req, res) => {
         res.status(400).json({
             success: false,
             message: 'Erreur lors de la création de l\'article',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+});
+
+// Route PUT pour mettre à jour un article
+app.put('/api/articles/:id', async (req, res) => {
+    try {
+        const article = await Article.findByIdAndUpdate(
+            req.params.id,
+            { $set: req.body },
+            { new: true, runValidators: true }
+        );
+        if (!article) {
+            return res.status(404).json({
+                success: false,
+                message: 'Article non trouvé'
+            });
+        }
+        res.json({
+            success: true,
+            data: article
+        });
+    } catch (err) {
+        console.error('❌ Erreur:', err);
+        res.status(400).json({
+            success: false,
+            message: 'Erreur lors de la mise à jour de l\'article',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+});
+
+// Route DELETE pour supprimer un article
+app.delete('/api/articles/:id', async (req, res) => {
+    try {
+        const article = await Article.findByIdAndDelete(req.params.id);
+        if (!article) {
+            return res.status(404).json({
+                success: false,
+                message: 'Article non trouvé'
+            });
+        }
+        res.json({
+            success: true,
+            message: 'Article supprimé avec succès'
+        });
+    } catch (err) {
+        console.error('❌ Erreur:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la suppression de l\'article',
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
     }

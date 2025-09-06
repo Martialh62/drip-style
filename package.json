@@ -12,11 +12,12 @@
     "node": ">=14.0.0"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.5.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "moment": "^2.29.4"
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.0",
+    "moment": "^2.29.4",
+    "mongoose": "^7.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

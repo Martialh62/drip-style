@@ -88,8 +88,7 @@ function formatPrixFCFA(prix) {
     });
 }
 
-// Configuration de l'API
-const API_URL = 'https://drip-style-api.onrender.com';
+import config from './config.js';
 
 // Afficher l'indicateur de démarrage du serveur
 function showServerStarting() {
@@ -139,17 +138,16 @@ function handleNetworkError(error) {
 // Fonction utilitaire pour les appels API
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
     // Ajout de l'URL de base de l'API
-    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    const fullUrl = url.startsWith('http') ? url : `${config.API_URL}${url}`;
     
     // Configuration par défaut
     const defaultOptions = {
         headers: {
             'Content-Type': 'application/json',
-        },
-        credentials: 'include'
+        }
     };
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    const id = setTimeout(() => controller.abort(), timeout || config.TIMEOUTS.DEFAULT_REQUEST);
     
     try {
         const response = await fetch(fullUrl, {
@@ -163,11 +161,6 @@ async function fetchWithTimeout(url, options = {}, timeout = 10000) {
             throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
         }
         clearTimeout(id);
-        
-        if (!response.ok) {
-            throw new Error(`Erreur HTTP: ${response.status}`);
-        }
-        
         return await response.json();
     } catch (err) {
         const errorMessage = handleNetworkError(err);
@@ -250,9 +243,11 @@ async function loadDashboard() {
     }
 }
 
-async function loadStock() {
+async function loadStock(page = 1) {
     try {
-        const articles = await fetch('/api/articles').then(r => r.json());
+        const response = await fetchWithTimeout(`/api/articles?page=${page}&limit=10`);
+        const { data: articles, pagination } = response;
+        
         const tbody = document.querySelector('#tableStock tbody');
         tbody.innerHTML = '';
         articles.forEach(article => {
@@ -265,10 +260,22 @@ async function loadStock() {
                     <td class="${article.quantiteEnStock <= article.seuilAlerte ? 'stock-alert' : ''}">${article.quantiteEnStock}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="editArticle('${article._id}')">Modifier</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteArticle('${article._id}')">Supprimer</button>
                     </td>
                 </tr>
             `;
         });
+
+        // Ajout de la pagination
+        const paginationContainer = document.querySelector('#stockPagination');
+        if (!paginationContainer) {
+            const container = document.createElement('div');
+            container.id = 'stockPagination';
+            container.className = 'pagination-container mt-3';
+            document.querySelector('#tableStock').after(container);
+        }
+        
+        updatePagination('stockPagination', pagination, loadStock);
 
         // Mise à jour de la liste des articles dans le formulaire de transaction
         const select = document.querySelector('#formTransaction select[name="articleId"]');
@@ -277,14 +284,46 @@ async function loadStock() {
             select.innerHTML += `<option value="${article._id}">${article.reference} - ${article.nom}</option>`;
         });
     } catch (err) {
-        console.error('Erreur lors du chargement du stock:', err);
-        alert('Erreur lors du chargement des données');
+        handleError(err, 'chargement du stock');
     }
+}
+
+// Fonction de mise à jour de la pagination
+function updatePagination(containerId, pagination, callback) {
+    const container = document.getElementById(containerId);
+    const { page, pages, total } = pagination;
+    
+    let html = `
+        <div class="d-flex justify-content-between align-items-center">
+            <span>Total: ${total} articles</span>
+            <div class="btn-group">
+                <button class="btn btn-outline-primary" ${page <= 1 ? 'disabled' : ''} onclick="${callback.name}(1)">
+                    «
+                </button>
+    `;
+    
+    for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) {
+        html += `
+            <button class="btn btn-outline-primary ${i === page ? 'active' : ''}" onclick="${callback.name}(${i})">
+                ${i}
+            </button>
+        `;
+    }
+    
+    html += `
+                <button class="btn btn-outline-primary" ${page >= pages ? 'disabled' : ''} onclick="${callback.name}(${pages})">
+                    »
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
 }
 
 async function loadTransactions() {
     try {
-        const transactions = await fetch('/api/transactions').then(r => r.json());
+        const transactions = await fetch(`${API_URL}/api/transactions`).then(r => r.json());
         const tbody = document.querySelector('#tableTransactions tbody');
         tbody.innerHTML = '';
         transactions.forEach(transaction => {
@@ -316,7 +355,7 @@ async function loadRapport() {
 async function refreshRapport() {
     try {
         const date = document.getElementById('dateRapport').value;
-        const rapport = await fetch(`/api/reports/journalier?date=${date}`).then(r => r.json());
+        const rapport = await fetch(`${API_URL}/api/reports/journalier?date=${date}`).then(r => r.json());
         
         const container = document.getElementById('rapportJournalier');
         container.innerHTML = `
@@ -412,7 +451,7 @@ document.getElementById('btnSaveArticle').addEventListener('click', async () => 
     const data = Object.fromEntries(formData.entries());
     
     try {
-        const response = await fetch('/api/articles', {
+        const response = await fetch(`${API_URL}/api/articles`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -438,7 +477,7 @@ document.getElementById('btnSaveTransaction').addEventListener('click', async ()
     const data = Object.fromEntries(formData.entries());
     
     try {
-        const response = await fetch('/api/transactions', {
+        const response = await fetch(`${API_URL}/api/transactions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
