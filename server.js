@@ -16,7 +16,12 @@ console.log('📑 Routes chargées:', {
     reports: typeof reportRoutes === 'function'
 });
 
-dotenv.config();
+// Chargement des variables d'environnement
+if (process.env.NODE_ENV === 'production') {
+    dotenv.config({ path: '.env.production' });
+} else {
+    dotenv.config();
+}
 
 const app = express();
 
