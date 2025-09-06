@@ -5,10 +5,16 @@ const dotenv = require('dotenv');
 
 // Routes
 // Import des routes
-const apiRoutes = require('./routes');
+const articleRoutes = require('./routes/articles');
+const transactionRoutes = require('./routes/transactions');
+const reportRoutes = require('./routes/reports');
 
 // Log pour débogage
-console.log('📑 Chargement des routes API...');
+console.log('📑 Chargement des routes...', {
+    articles: articleRoutes ? 'OK' : 'Non chargé',
+    transactions: transactionRoutes ? 'OK' : 'Non chargé',
+    reports: reportRoutes ? 'OK' : 'Non chargé'
+});
 
 // Chargement des variables d'environnement
 if (process.env.NODE_ENV === 'production') {
@@ -148,8 +154,15 @@ app.get('/test', (req, res) => {
 });
 
 // Montage des routes API
-app.use('/api', apiRoutes);
-console.log('✅ Routes API montées sur /api');
+app.use('/api/articles', articleRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/reports', reportRoutes);
+
+console.log('✅ Routes montées :', {
+    '/api/articles': true,
+    '/api/transactions': true,
+    '/api/reports': true
+});
 
 // Route racine
 app.get('/', (req, res) => {

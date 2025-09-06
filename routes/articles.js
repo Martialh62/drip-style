@@ -1,18 +1,45 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 
 // Log pour débogage
 console.log('📓 Initialisation des routes articles');
 const Article = require('../models/Article');
 
+// Middleware de vérification de la connexion MongoDB
+const checkMongoConnection = (req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({
+            success: false,
+            message: 'Base de données non connectée',
+            status: mongoose.connection.readyState
+        });
+    }
+    next();
+};
+
+// Appliquer le middleware à toutes les routes
+router.use(checkMongoConnection);
+
 // Obtenir tous les articles
 router.get('/', async (req, res) => {
-  try {
-    const articles = await Article.find();
-    res.json(articles);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+    console.log(' Recherche des articles...');
+    try {
+        const articles = await Article.find();
+        console.log(` ${articles.length} articles trouvés`);
+        res.json({
+            success: true,
+            data: articles,
+            count: articles.length
+        });
+    } catch (err) {
+        console.error(' Erreur lors de la récupération des articles:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la récupération des articles',
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
 });
 
 // Créer un nouvel article
