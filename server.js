@@ -179,6 +179,30 @@ process.on('SIGINT', async () => {
     }
 });
 
+// Fonction pour trouver un port disponible
+const findAvailablePort = async (startPort) => {
+    const net = require('net');
+    
+    const isPortAvailable = (port) => {
+        return new Promise((resolve) => {
+            const server = net.createServer()
+                .once('error', () => resolve(false))
+                .once('listening', () => {
+                    server.close();
+                    resolve(true);
+                });
+            server.listen(port, '0.0.0.0');
+        });
+    };
+
+    for (let port = startPort; port < startPort + 10; port++) {
+        if (await isPortAvailable(port)) {
+            return port;
+        }
+    }
+    throw new Error('Aucun port disponible trouvé');
+};
+
 // Démarrage du serveur et de la connexion
 const startServer = async () => {
     try {
@@ -192,10 +216,14 @@ const startServer = async () => {
         // Connexion à MongoDB
         await connectWithRetry();
 
+        // Trouver un port disponible
+        const availablePort = await findAvailablePort(parseInt(PORT));
+        console.log(`🔍 Port ${availablePort} disponible`);
+
         // Démarrage du serveur Express
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-            console.log(`🌐 URL de l'API: http://localhost:${PORT}`);
+        app.listen(availablePort, '0.0.0.0', () => {
+            console.log(`🚀 Serveur démarré sur le port ${availablePort}`);
+            console.log(`🌐 URL de l'API: http://localhost:${availablePort}`);
             console.log('📑 Routes disponibles:');
             console.log('  - GET  /api/status');
             console.log('  - GET  /api/articles');
