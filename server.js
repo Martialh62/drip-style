@@ -113,30 +113,46 @@ mongoose.set('debug', true);
 const mongoOptions = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 30000,
+    serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
-    connectTimeoutMS: 30000,
+    family: 4,
+    autoIndex: true,
+    connectTimeoutMS: 10000,
     retryWrites: true,
     w: 'majority'
 };
 
-// Fonction de connexion à MongoDB avec retry
-async function connectWithRetry() {
-    try {
-        console.log('📡 Tentative de connexion à MongoDB...');
-        console.log('📁 URI:', process.env.MONGODB_URI.replace(/:([^:@]+)@/, ':****@'));
-        
-        await mongoose.connect(process.env.MONGODB_URI, mongoOptions);
-        console.log('✅ Connecté à MongoDB avec succès');
-    } catch (err) {
-        console.error('❌ Erreur de connexion à MongoDB:', err.message);
-        if (err.name === 'MongoServerSelectionError') {
-            console.error('🔍 Détails:', err.reason?.servers);
+// Vérification de la configuration MongoDB
+console.log('🔑 Configuration MongoDB :', {
+    uri: process.env.MONGODB_URI ? 'Définie' : 'Non définie',
+    env: process.env.NODE_ENV,
+    options: mongoOptions
+});
+
+// Fonction de connexion avec retry
+const connectWithRetry = async (retries = 5) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            console.log(`🔗 Tentative de connexion à MongoDB (${i + 1}/${retries})...`);
+            await mongoose.connect(process.env.MONGODB_URI, mongoOptions);
+            console.log('✅ Connecté à MongoDB');
+            
+            // Vérifier l'accès à la base de données
+            const collections = await mongoose.connection.db.listCollections().toArray();
+            console.log('📚 Collections disponibles:', collections.map(c => c.name));
+            
+            return true;
+        } catch (err) {
+            console.error(`❌ Erreur de connexion (tentative ${i + 1}):`, err.message);
+            if (i < retries - 1) {
+                const waitTime = Math.min(1000 * Math.pow(2, i), 10000);
+                console.log(`⏳ Attente de ${waitTime/1000} secondes avant la prochaine tentative...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
         }
-        console.log('🔄 Nouvelle tentative dans 5 secondes...');
-        setTimeout(connectWithRetry, 5000);
     }
-}
+    throw new Error('Impossible de se connecter à MongoDB après plusieurs tentatives');
+};
 
 // Gestion des événements de connexion MongoDB
 mongoose.connection.on('connected', () => {
