@@ -91,6 +91,36 @@ function formatPrixFCFA(prix) {
 // Configuration de l'API
 const API_URL = 'https://drip-style.onrender.com';
 
+// Afficher l'indicateur de démarrage du serveur
+function showServerStarting() {
+    const indicator = document.createElement('div');
+    indicator.className = 'server-starting';
+    indicator.innerHTML = `
+        <p>🔄 Le serveur est en cours de démarrage... Veuillez patienter quelques instants.</p>
+    `;
+    document.body.prepend(indicator);
+    return indicator;
+}
+
+// Vérification de la connexion au serveur
+async function checkServerConnection(retries = 3) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(`${API_URL}/api/articles`);
+            if (response.ok) {
+                console.log('💚 Serveur connecté');
+                return true;
+            }
+        } catch (err) {
+            console.log(`❗ Tentative ${i + 1}/${retries} échouée`);
+            if (i < retries - 1) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        }
+    }
+    return false;
+}
+
 // Fonction de gestion des erreurs réseau
 function handleNetworkError(error) {
     console.error('Erreur réseau:', error);
@@ -431,5 +461,34 @@ document.getElementById('btnSaveTransaction').addEventListener('click', async ()
 
 document.getElementById('dateRapport').addEventListener('change', refreshRapport);
 
-// Chargement initial
-loadDashboard();
+// Chargement initial avec vérification du serveur
+async function initializeApp() {
+    const dashboard = document.getElementById('dashboard');
+    const loadingText = document.createElement('div');
+    loadingText.className = 'loading-text';
+    loadingText.textContent = 'Chargement en cours...';
+    dashboard.appendChild(loadingText);
+
+    const serverIndicator = showServerStarting();
+    showLoading(dashboard);
+
+    try {
+        const isConnected = await checkServerConnection();
+        if (!isConnected) {
+            throw new Error('Le serveur est en cours de démarrage. Veuillez patienter quelques instants...');
+        }
+        await loadDashboard();
+        // Supprimer l'indicateur de démarrage
+        serverIndicator.remove();
+        loadingText.remove();
+    } catch (err) {
+        handleError(err, 'initialisation');
+        // Réessayer dans 10 secondes
+        setTimeout(() => {
+            loadingText.textContent = 'Nouvelle tentative de connexion...';
+            initializeApp();
+        }, 10000);
+    }
+}
+
+initializeApp();
