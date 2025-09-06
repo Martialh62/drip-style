@@ -12,10 +12,28 @@ dotenv.config();
 
 const app = express();
 
+// Configuration CORS
+const corsOptions = {
+    origin: ['https://drip-style.netlify.app', 'http://localhost:3001'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
+
+// Middleware de gestion des erreurs
+app.use((err, req, res, next) => {
+    console.error('Erreur:', err.stack);
+    res.status(500).json({
+        success: false,
+        message: 'Une erreur est survenue',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+});
 
 // Configuration de Mongoose
 mongoose.set('strictQuery', false);

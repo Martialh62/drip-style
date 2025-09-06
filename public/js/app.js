@@ -91,18 +91,44 @@ function formatPrixFCFA(prix) {
 // Configuration de l'API
 const API_URL = 'https://drip-style.onrender.com';
 
+// Fonction de gestion des erreurs réseau
+function handleNetworkError(error) {
+    console.error('Erreur réseau:', error);
+    if (!navigator.onLine) {
+        return 'Vous êtes hors ligne. Vérifiez votre connexion internet.';
+    }
+    if (error.name === 'AbortError') {
+        return 'La requête a pris trop de temps. Veuillez réessayer.';
+    }
+    return 'Impossible de se connecter au serveur. Veuillez réessayer plus tard.';
+}
+
 // Fonction utilitaire pour les appels API
-async function fetchWithTimeout(url, options = {}, timeout = 5000) {
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
     // Ajout de l'URL de base de l'API
     const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+    
+    // Configuration par défaut
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+    };
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     
     try {
         const response = await fetch(fullUrl, {
+            ...defaultOptions,
             ...options,
             signal: controller.signal
         });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+        }
         clearTimeout(id);
         
         if (!response.ok) {
@@ -111,27 +137,28 @@ async function fetchWithTimeout(url, options = {}, timeout = 5000) {
         
         return await response.json();
     } catch (err) {
-        if (err.name === 'AbortError') {
-            throw new Error('La requête a expiré');
-        }
-        throw err;
+        const errorMessage = handleNetworkError(err);
+        showNotification('error', errorMessage);
+        throw new Error(errorMessage);
     }
 }
 
 // Fonction de gestion des erreurs
 function handleError(error, context) {
     console.error(`Erreur dans ${context}:`, error);
-    let message = 'Une erreur est survenue';
-    
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        message = 'Impossible de se connecter au serveur. Vérifiez votre connexion.';
-    } else if (error.message.includes('expired')) {
-        message = 'Le serveur met trop de temps à répondre.';
-    } else if (error.message.includes('HTTP')) {
-        message = 'Erreur serveur. Veuillez réessayer plus tard.';
-    }
-    
+    const message = error.message || 'Une erreur est survenue';
     showNotification('error', message);
+
+    // Réinitialisation de l'interface en cas d'erreur
+    hideLoading(document.querySelector('.page.active'));
+
+    // Réessayer automatiquement dans certains cas
+    if (message.includes('connexion') || message.includes('hors ligne')) {
+        setTimeout(() => {
+            console.log('Tentative de reconnexion...');
+            loadPageData(document.querySelector('.page.active').id);
+        }, 5000);
+    }
 }
 
 async function loadDashboard() {
