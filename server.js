@@ -15,6 +15,14 @@ const Transaction = require('./models/Transaction');
 mongoose.set('strictQuery', false);
 mongoose.set('debug', true);
 
+// Initialisation de l'application Express
+const app = express();
+
+// Configuration de base
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+
 // Options de connexion MongoDB
 const mongoOptions = {
     useNewUrlParser: true,
@@ -27,14 +35,6 @@ const mongoOptions = {
     retryWrites: true,
     w: 'majority'
 };
-
-// Initialisation de l'application Express
-const app = express();
-
-// Configuration de base
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
 
 // Middleware de logging
 app.use((req, res, next) => {
