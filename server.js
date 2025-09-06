@@ -12,6 +12,13 @@ dotenv.config();
 
 const app = express();
 
+// Log des variables d'environnement (sans les secrets)
+console.log('💻 Configuration du serveur :', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    DATABASE: process.env.MONGODB_URI ? 'Configurée' : 'Non configurée'
+});
+
 // Configuration CORS
 const corsOptions = {
     origin: '*',  // Permettre toutes les origines pendant le développement
@@ -128,12 +135,34 @@ process.on('SIGINT', async () => {
 // Démarrage de la connexion
 connectWithRetry();
 
-// Routes
+// Test route
+app.get('/test', (req, res) => {
+    res.json({ message: 'API opérationnelle' });
+});
+
+// Routes API
 app.use('/api/articles', articleRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/reports', reportRoutes);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
+// Route racine
+app.get('/', (req, res) => {
+    res.json({
+        message: 'API DRIP & STYLE',
+        version: '1.0.0',
+        endpoints: [
+            '/api/articles',
+            '/api/transactions',
+            '/api/reports',
+            '/health',
+            '/test'
+        ]
+    });
+});
+
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+    console.log(`🌐 URL de l'API: http://localhost:${PORT}`);
 });
