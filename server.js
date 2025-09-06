@@ -45,10 +45,31 @@ const requestLogger = (req, res, next) => {
     next();
 };
 
-// Middleware
-app.use(requestLogger);
-app.use(cors(corsOptions));
+// Middleware essentiels
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+
+// Middleware de logging
+app.use((req, res, next) => {
+    console.log(`💬 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
+// Vérification de la connexion MongoDB
+app.use((req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        console.error('❌ MongoDB non connecté - ReadyState:', mongoose.connection.readyState);
+        return res.status(503).json({
+            success: false,
+            message: 'Base de données non connectée',
+            readyState: mongoose.connection.readyState
+        });
+    }
+    next();
+});
+
+// Servir les fichiers statiques
 app.use(express.static('public'));
 
 // Health check endpoint
@@ -150,7 +171,19 @@ app.get('/test', (req, res) => {
     res.json({ message: 'API opérationnelle' });
 });
 
-// Routes API directes pour le débogage
+// Test de la connexion MongoDB
+app.get('/api/status', (req, res) => {
+    res.json({
+        success: true,
+        mongodb: {
+            connected: mongoose.connection.readyState === 1,
+            state: mongoose.connection.readyState
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Routes API
 app.get('/api/articles', async (req, res) => {
     console.log('🔍 GET /api/articles');
     try {
@@ -207,9 +240,35 @@ app.get('/', (req, res) => {
     });
 });
 
+// Gestionnaire d'erreurs global
+app.use((err, req, res, next) => {
+    console.error('❌ Erreur globale:', err);
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Erreur interne du serveur',
+        path: req.path,
+        timestamp: new Date().toISOString(),
+        error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+});
+
+// Gestionnaire de routes non trouvées
+app.use((req, res) => {
+    console.log('⚠️ Route non trouvée:', req.method, req.path);
+    res.status(404).json({
+        success: false,
+        message: `Route non trouvée: ${req.method} ${req.path}`,
+        timestamp: new Date().toISOString()
+    });
+});
+
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Serveur démarré sur le port ${PORT}`);
     console.log(`🌐 URL de l'API: http://localhost:${PORT}`);
+    console.log('📑 Routes disponibles:');
+    console.log('  - GET  /api/status');
+    console.log('  - GET  /api/articles');
+    console.log('  - POST /api/articles');
 });
