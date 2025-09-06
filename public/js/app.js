@@ -89,7 +89,7 @@ function formatPrixFCFA(prix) {
 }
 
 // Configuration de l'API
-const API_URL = 'https://drip-style.onrender.com';
+const API_URL = 'https://drip-style-api.onrender.com';
 
 // Afficher l'indicateur de démarrage du serveur
 function showServerStarting() {

@@ -14,24 +14,56 @@ const app = express();
 
 // Configuration CORS
 const corsOptions = {
-    origin: ['https://drip-style.netlify.app', 'http://localhost:3001'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    origin: '*',  // Permettre toutes les origines pendant le développement
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    credentials: true,
+    preflightContinue: true,
+    optionsSuccessStatus: 204
+};
+
+// Logger middleware
+const requestLogger = (req, res, next) => {
+    console.log(`💬 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
 };
 
 // Middleware
+app.use(requestLogger);
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
 // Middleware de gestion des erreurs
 app.use((err, req, res, next) => {
-    console.error('Erreur:', err.stack);
-    res.status(500).json({
+    console.error('❌ Erreur:', err.stack);
+    const statusCode = err.statusCode || 500;
+    const errorResponse = {
         success: false,
-        message: 'Une erreur est survenue',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        message: err.message || 'Une erreur est survenue',
+        path: req.path,
+        method: req.method,
+        timestamp: new Date().toISOString()
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+        errorResponse.stack = err.stack;
+    }
+
+    res.status(statusCode).json(errorResponse);
+});
+
+// Gestion des routes non trouvées
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: `Route non trouvée: ${req.method} ${req.path}`,
+        timestamp: new Date().toISOString()
     });
 });
 
