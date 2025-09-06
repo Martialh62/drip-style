@@ -102,23 +102,46 @@ function showServerStarting() {
 }
 
 // Vérification de la connexion au serveur
-async function checkServerConnection(retries = 5) {
+async function checkServerConnection(retries = 10) {
+    const indicator = document.querySelector('.server-starting');
+    if (indicator) {
+        indicator.innerHTML = `
+            <div class="alert alert-info">
+                <p>🔄 Connexion au serveur...</p>
+                <p class="text-muted">Premier démarrage : 2-3 minutes</p>
+                <div class="progress mt-2">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                </div>
+            </div>
+        `;
+    }
+
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await fetch(`${API_URL}/api/articles`);
-            if (response.ok) {
-                console.log('💚 Serveur connecté');
-                return true;
+            if (indicator) {
+                const progressBar = indicator.querySelector('.progress-bar');
+                progressBar.style.width = `${(i / retries) * 100}%`;
             }
+
+            await config.fetchWithRetry(`${config.API_URL}/health`);
+            console.log('💚 Serveur connecté');
+            if (indicator) indicator.remove();
+            return true;
         } catch (err) {
-            console.log(`❗ Tentative ${i + 1}/${retries} échouée`);
+            console.log(`❗ Tentative ${i + 1}/${retries}`);
             if (i < retries - 1) {
-                // Attendre plus longtemps entre chaque tentative
-                const waitTime = (i + 1) * 10000; // 10s, 20s, 30s, 40s, 50s
-                console.log(`⏳ Attente de ${waitTime/1000} secondes avant la prochaine tentative...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
+                await new Promise(resolve => setTimeout(resolve, config.TIMEOUTS.RETRY_DELAY));
             }
         }
+    }
+
+    if (indicator) {
+        indicator.innerHTML = `
+            <div class="alert alert-warning">
+                <p>⚠️ Connexion impossible pour le moment</p>
+                <p>Cliquez <a href="javascript:window.location.reload()">ici</a> pour réessayer</p>
+            </div>
+        `;
     }
     return false;
 }
@@ -245,7 +268,7 @@ async function loadDashboard() {
 
 async function loadStock(page = 1) {
     try {
-        const response = await fetchWithTimeout(`/api/articles?page=${page}&limit=10`);
+        const response = await config.fetchWithRetry(`${config.API_URL}/api/articles?page=${page}&limit=10`);
         const { data: articles, pagination } = response;
         
         const tbody = document.querySelector('#tableStock tbody');
@@ -285,6 +308,8 @@ async function loadStock(page = 1) {
         });
     } catch (err) {
         handleError(err, 'chargement du stock');
+        showNotification('error', 'Erreur lors du chargement du stock. Réessai en cours...');
+        setTimeout(() => loadStock(page), config.TIMEOUTS.RETRY_DELAY);
     }
 }
 
@@ -323,7 +348,7 @@ function updatePagination(containerId, pagination, callback) {
 
 async function loadTransactions() {
     try {
-        const transactions = await fetch(`${API_URL}/api/transactions`).then(r => r.json());
+        const transactions = await fetch(`${config.API_URL}/api/transactions`).then(r => r.json());
         const tbody = document.querySelector('#tableTransactions tbody');
         tbody.innerHTML = '';
         transactions.forEach(transaction => {
@@ -355,7 +380,7 @@ async function loadRapport() {
 async function refreshRapport() {
     try {
         const date = document.getElementById('dateRapport').value;
-        const rapport = await fetch(`${API_URL}/api/reports/journalier?date=${date}`).then(r => r.json());
+        const rapport = await fetch(`${config.API_URL}/api/reports/journalier?date=${date}`).then(r => r.json());
         
         const container = document.getElementById('rapportJournalier');
         container.innerHTML = `
@@ -451,7 +476,7 @@ document.getElementById('btnSaveArticle').addEventListener('click', async () => 
     const data = Object.fromEntries(formData.entries());
     
     try {
-        const response = await fetch(`${API_URL}/api/articles`, {
+        const response = await fetch(`${config.API_URL}/api/articles`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -477,7 +502,7 @@ document.getElementById('btnSaveTransaction').addEventListener('click', async ()
     const data = Object.fromEntries(formData.entries());
     
     try {
-        const response = await fetch(`${API_URL}/api/transactions`, {
+        const response = await fetch(`${config.API_URL}/api/transactions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
