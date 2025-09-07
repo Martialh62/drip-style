@@ -4,14 +4,28 @@ import { auth } from './config.js';
 // Gestion de l'authentification
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
+    const loginBtn = document.getElementById('loginBtn');
+    const spinner = loginBtn.querySelector('.spinner-border');
+    const btnText = loginBtn.querySelector('.btn-text');
+
+    // Afficher le spinner
+    spinner.classList.remove('d-none');
+    btnText.textContent = 'Connexion en cours...';
+    loginBtn.disabled = true;
 
     try {
         await signInWithEmailAndPassword(auth, email, password);
         // La redirection sera gérée par l'observateur d'authentification
     } catch (error) {
         alert('Erreur de connexion : ' + error.message);
+    } finally {
+        // Cacher le spinner
+        spinner.classList.add('d-none');
+        btnText.textContent = 'Se connecter';
+        loginBtn.disabled = false;
     }
 });
 
