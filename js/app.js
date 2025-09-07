@@ -36,7 +36,17 @@ window.deleteItem = async (itemId) => {
 document.querySelectorAll('[data-page]').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
-        const pageId = e.target.dataset.page;
+        const pageId = e.target.closest('[data-page]').dataset.page;
+        showPage(pageId);
+    });
+});
+
+// Gestion des clics sur les icônes dans la navigation
+document.querySelectorAll('[data-page] i').forEach(icon => {
+    icon.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pageId = e.target.closest('[data-page]').dataset.page;
         showPage(pageId);
     });
 });
