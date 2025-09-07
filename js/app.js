@@ -498,7 +498,7 @@ let salesChartInstance = null;
 let topItemsChartInstance = null;
 
 // Fonction de réinitialisation des données
-async function resetData() {
+window.resetData = async function() {
     try {
         // Supprimer les ventes
         const salesCollection = collection(db, COLLECTIONS.SALES);
