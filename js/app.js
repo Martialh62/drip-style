@@ -497,6 +497,42 @@ async function loadDashboardData() {
 let salesChartInstance = null;
 let topItemsChartInstance = null;
 
+// Fonction de réinitialisation des données
+async function resetData() {
+    try {
+        // Supprimer les ventes
+        const salesCollection = collection(db, COLLECTIONS.SALES);
+        const salesSnapshot = await getDocs(salesCollection);
+        const salesPromises = salesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(salesPromises);
+
+        // Supprimer les mouvements de stock
+        const movementsCollection = collection(db, COLLECTIONS.STOCK_MOVEMENTS);
+        const movementsSnapshot = await getDocs(movementsCollection);
+        const movementsPromises = movementsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(movementsPromises);
+
+        // Supprimer les articles
+        const itemsCollection = collection(db, COLLECTIONS.ITEMS);
+        const itemsSnapshot = await getDocs(itemsCollection);
+        const itemsPromises = itemsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(itemsPromises);
+
+        // Supprimer les catégories
+        const categoriesCollection = collection(db, COLLECTIONS.CATEGORIES);
+        const categoriesSnapshot = await getDocs(categoriesCollection);
+        const categoriesPromises = categoriesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(categoriesPromises);
+
+        alert('Toutes les données ont été réinitialisées avec succès.');
+        loadDashboardData();
+        loadStockData();
+    } catch (error) {
+        console.error('Erreur lors de la réinitialisation :', error);
+        alert('Erreur lors de la réinitialisation des données.');
+    }
+}
+
 // Gestion des rapports
 document.getElementById('reportType').addEventListener('change', (e) => {
     const salesSection = document.getElementById('salesReportSection');
