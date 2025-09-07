@@ -56,6 +56,23 @@ function showPage(pageId) {
         page.classList.add('d-none');
     });
     document.getElementById(pageId + 'Page').classList.remove('d-none');
+
+    // Recharger les données de la page
+    switch(pageId) {
+        case 'dashboard':
+            loadDashboardData();
+            break;
+        case 'stock':
+            loadStockData();
+            break;
+        case 'sales':
+            loadSalesData();
+            loadFilteredSales('day');
+            break;
+        case 'reports':
+            loadReportsData();
+            break;
+    }
     
     // Met à jour le lien actif
     document.querySelectorAll('.nav-link').forEach(link => {

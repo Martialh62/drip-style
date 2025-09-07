@@ -46,7 +46,12 @@ onAuthStateChanged(auth, (user) => {
     if (user) {
         loginSection.classList.add('d-none');
         appSection.classList.remove('d-none');
-        loadDashboardData(); // Charge les données du tableau de bord
+        
+        // Charger toutes les données
+        loadDashboardData();
+        loadStockData();
+        loadSalesData();
+        loadReportsData();
     } else {
         loginSection.classList.remove('d-none');
         appSection.classList.add('d-none');
